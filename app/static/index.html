@@ -290,6 +290,23 @@
 
       <div id="stories"></div>
     </section>
+
+<section
+  id="archive"
+  aria-label="Previous papers"
+  style="margin-top: 48px; border-top: 2px solid #242424; padding-top: 20px;"
+>
+  <h2>Previous papers</h2>
+
+  <p class="sans muted">
+    Reopen a saved edition exactly as it was created.
+  </p>
+
+  <p id="archive-status" class="sans muted" role="status"></p>
+
+  <div id="archive-list"></div>
+</section>
+
   </main>
 
   <script>
@@ -395,10 +412,11 @@
       warningsElement.textContent = "";
 
       try {
-        const response = await fetch("/api/personalize", {
+        const response = await fetch("/api/editions", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-Reader-ID": window.daybreakReaderId
           },
           body: JSON.stringify(preferences)
         });
@@ -441,8 +459,14 @@
         form.hidden = true;
         edition.hidden = false;
 
+        window.daybreakEditionId = data.edition_id;
+
         statusElement.textContent =
-          "Your paper is ready. Preferences saved in this browser.";
+          "Your paper is ready and saved to your archive.";
+
+        if (window.loadDaybreakArchive) {
+          window.loadDaybreakArchive();
+        }
 
         edition.scrollIntoView({
           behavior: "smooth",
@@ -472,5 +496,7 @@
 
     restorePreferences();
   </script>
+
+  <script src="/static/archive.js"></script>
 </body>
 </html>
