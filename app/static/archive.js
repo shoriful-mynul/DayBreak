@@ -25,6 +25,7 @@ if (!readerId) {
 window.daybreakReaderId = readerId;
 
 function showSavedEdition(paper) {
+  renderCoverage(paper);
   window.setDaybreakEditionDate(paper.created_at);
 
   stories.replaceChildren();

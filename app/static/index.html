@@ -353,6 +353,21 @@ article .reason {
   }
 }
 
+
+/* Edition coverage: counts describe the complete displayed edition. */
+.coverage-panel { margin:24px 0; padding:22px; border:1px solid #c9c2b5; background:#fffdf7; }
+.coverage-panel h3 { margin:0 0 6px; font-size:25px; }
+.coverage-subtitle { margin:0 0 18px; font:13px/1.6 Arial,sans-serif; color:#625e56; }
+.coverage-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
+.coverage-metric { border-left:3px solid #b6a98d; padding-left:12px; font:12px/1.5 Arial,sans-serif; color:#625e56; }
+.coverage-metric strong { display:block; color:#242424; font-size:25px; }
+.coverage-bar { display:flex; height:22px; overflow:hidden; border-radius:3px; background:#eee8dc; }
+.coverage-segment { height:100%; min-width:0; }
+.coverage-legend { display:flex; flex-wrap:wrap; gap:12px 22px; margin:14px 0 0; padding:0; list-style:none; font:13px/1.5 Arial,sans-serif; }
+.coverage-legend li { display:flex; align-items:center; gap:8px; }
+.coverage-swatch { width:11px; height:11px; border-radius:2px; flex-shrink:0; }
+@media(max-width:560px) { .coverage-panel { padding:16px; } .coverage-metrics { gap:8px; } .coverage-metric { padding-left:8px; } .coverage-metric strong { font-size:21px; } }
+
   </style>
 </head>
 
@@ -473,6 +488,8 @@ article .reason {
         Learning from your reading feedback.
       </p>
 
+      <section id="edition-coverage" class="coverage-panel" aria-labelledby="coverage-title" hidden></section>
+
       <div id="stories"></div>
     </section>
 
@@ -537,6 +554,89 @@ article .reason {
       } catch (error) {
         console.warn("Preferences could not be restored.");
       }
+    }
+
+
+    function renderCoverage(paper) {
+      const panel = document.getElementById("edition-coverage");
+      panel.replaceChildren();
+      const articles = Array.isArray(paper.articles) ? paper.articles : [];
+      panel.hidden = !articles.length;
+      if (!articles.length) return;
+
+      const topics = [
+        ["technology", "Technology", "#702b35"],
+        ["science", "Science", "#315f52"],
+        ["world", "World affairs", "#426580"]
+      ];
+      const counts = {};
+      articles.forEach(article => {
+        const topic = article.topic || "other";
+        counts[topic] = (counts[topic] || 0) + 1;
+      });
+      if (Object.keys(counts).some(topic => !topics.some(item => item[0] === topic))) {
+        counts.other = Object.entries(counts).filter(([key]) =>
+          !topics.some(item => item[0] === key)
+        ).reduce((sum, [, count]) => sum + count, 0);
+        topics.push(["other", "Other", "#786b54"]);
+      }
+
+      const title = document.createElement("h3");
+      title.id = "coverage-title";
+      title.textContent = "Inside your paper";
+      const subtitle = document.createElement("p");
+      subtitle.className = "coverage-subtitle";
+      subtitle.textContent = "Your topic mix, based on the stories in this edition.";
+      const metrics = document.createElement("div");
+      metrics.className = "coverage-metrics";
+      const publishers = new Set(articles.map(article => article.source).filter(Boolean)).size;
+      const minutes = Number(paper.estimated_reading_minutes);
+      const reading = Number.isFinite(minutes) && minutes > 0 ? "~" + minutes + " min" : "Unavailable";
+      for (const [value, label] of [
+        [articles.length, "Stories"],
+        [publishers, "Publishers"],
+        [reading, "Estimated brief reading"]
+      ]) {
+        const metric = document.createElement("div");
+        metric.className = "coverage-metric";
+        const number = document.createElement("strong");
+        number.textContent = String(value);
+        const caption = document.createElement("span");
+        caption.textContent = label;
+        metric.append(number, caption);
+        metrics.appendChild(metric);
+      }
+
+      const bar = document.createElement("div");
+      bar.className = "coverage-bar";
+      bar.setAttribute("role", "img");
+      bar.setAttribute("aria-label", "Topic mix: " + topics.map(([key, label]) =>
+        label + ": " + (counts[key] || 0) + " stories"
+      ).join("; "));
+      const legend = document.createElement("ul");
+      legend.className = "coverage-legend";
+      topics.forEach(([key, label, color]) => {
+        const count = counts[key] || 0;
+        if (count) {
+          const segment = document.createElement("div");
+          segment.className = "coverage-segment";
+          segment.style.width = (count / articles.length * 100) + "%";
+          segment.style.backgroundColor = color;
+          segment.title = label + ": " + count + " of " + articles.length;
+          segment.setAttribute("aria-hidden", "true");
+          bar.appendChild(segment);
+        }
+        const item = document.createElement("li");
+        const swatch = document.createElement("span");
+        swatch.className = "coverage-swatch";
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("aria-hidden", "true");
+        const labelText = document.createElement("span");
+        labelText.textContent = label + ": " + count + (count === 1 ? " story" : " stories");
+        item.append(swatch, labelText);
+        legend.appendChild(item);
+      });
+      panel.append(title, subtitle, metrics, bar, legend);
     }
 
     function createStory(story) {
@@ -695,6 +795,8 @@ article .reason {
         } catch (error) {
           console.warn("Preferences could not be saved locally.");
         }
+
+        renderCoverage(data);
 
         stories.replaceChildren();
 
