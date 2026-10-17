@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Daybreak — Your Personal Morning Paper</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: #f7f3e9;
+      color: #222;
+      font-family: Georgia, serif;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 70px auto;
+      padding: 24px;
+    }
+
+    header {
+      border-top: 4px solid #222;
+      border-bottom: 1px solid #222;
+      padding: 24px 0;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(48px, 10vw, 84px);
+      letter-spacing: -3px;
+    }
+
+    .subtitle {
+      font-family: Arial, sans-serif;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    section {
+      padding: 32px 0;
+    }
+
+    #status {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>DAYBREAK</h1>
+      <p class="subtitle">Your personal morning paper.</p>
+    </header>
+
+    <section>
+      <h2>A clearer start to your day.</h2>
+
+      <p class="subtitle">
+        News selected around your interests, gathered into
+        one readable daily edition.
+      </p>
+
+      <p id="status" role="status">Checking server...</p>
+    </section>
+  </main>
+
+  <script>
+    async function checkServer() {
+      const status = document.getElementById("status");
+
+      try {
+        const response = await fetch("/api/health");
+
+        if (!response.ok) {
+          throw new Error("Health check failed");
+        }
+
+        const data = await response.json();
+
+        status.textContent =
+          data.status === "ok"
+            ? "Server connected. Ready for the next step."
+            : "Server returned an unexpected response.";
+      } catch (error) {
+        status.textContent =
+          "Cannot connect to the server. Check the terminal.";
+      }
+    }
+
+    checkServer();
+  </script>
+</body>
+</html>
