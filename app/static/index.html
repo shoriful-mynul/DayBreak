@@ -7,45 +7,197 @@
   <title>Daybreak — Your Personal Morning Paper</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       background: #f7f3e9;
-      color: #222;
+      color: #242424;
       font-family: Georgia, serif;
     }
 
     main {
-      max-width: 900px;
-      margin: 70px auto;
-      padding: 24px;
+      max-width: 1120px;
+      margin: auto;
+      padding: 28px 22px 60px;
     }
 
     header {
-      border-top: 4px solid #222;
-      border-bottom: 1px solid #222;
-      padding: 24px 0;
       text-align: center;
+      border-top: 4px solid #242424;
+      border-bottom: 2px solid #242424;
+      padding: 24px 0;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(48px, 10vw, 84px);
+      font-size: clamp(48px, 10vw, 82px);
       letter-spacing: -3px;
     }
 
-    .subtitle {
+    .sans,
+    label,
+    input,
+    select,
+    button,
+    .meta,
+    .reason,
+    .source-link {
       font-family: Arial, sans-serif;
-      color: #555;
+    }
+
+    .muted {
+      color: #625e56;
       line-height: 1.6;
     }
 
-    section {
-      padding: 32px 0;
+    #preferences {
+      max-width: 660px;
+      margin: 32px auto;
+      padding: 24px;
+      border: 1px solid #c9c2b5;
+      background: #fffdf7;
     }
 
-    #status {
-      font-family: Arial, sans-serif;
-      font-size: 14px;
+    #preferences h2 {
+      margin-top: 0;
+      font-size: 30px;
+    }
+
+    fieldset {
+      border: 0;
+      padding: 0;
+      margin: 24px 0;
+    }
+
+    legend {
+      margin-bottom: 14px;
+      font-weight: bold;
+    }
+
+    .topic-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .topic-options label {
+      padding: 12px;
+      border: 1px solid #c9c2b5;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .field-label {
+      display: block;
+      margin: 20px 0 8px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #aaa394;
+      border-radius: 4px;
+      background: white;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 4px;
+      background: #702b35;
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .submit-button {
+      margin-top: 24px;
+      width: 100%;
+    }
+
+    .edition-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin: 28px 0 16px;
+    }
+
+    #stories {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 28px;
+    }
+
+    article {
+      padding-top: 18px;
+      border-top: 1px solid #bdb7aa;
+      overflow-wrap: anywhere;
+    }
+
+    article h2 {
+      font-size: 25px;
+      line-height: 1.2;
+    }
+
+    article p {
+      line-height: 1.65;
+    }
+
+    .meta {
+      color: #625e56;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .reason {
+      padding: 12px;
+      background: #eee9dc;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .source-link {
+      color: #702b35;
+      font-weight: bold;
+      line-height: 1.5;
+    }
+
+    #warnings {
+      color: #854815;
+      line-height: 1.6;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 850px) {
+      #stories {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      #stories {
+        grid-template-columns: 1fr;
+      }
+
+      .edition-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -53,46 +205,272 @@
 <body>
   <main>
     <header>
+      <p id="today" class="sans muted"></p>
       <h1>DAYBREAK</h1>
-      <p class="subtitle">Your personal morning paper.</p>
+      <p class="sans muted">Your morning, in focus.</p>
     </header>
 
-    <section>
-      <h2>A clearer start to your day.</h2>
+    <form id="preferences">
+      <h2>What deserves a place in your morning?</h2>
 
-      <p class="subtitle">
-        News selected around your interests, gathered into
-        one readable daily edition.
+      <p class="sans muted">
+        Choose your interests and how much time you have.
       </p>
 
-      <p id="status" role="status">Checking server...</p>
+      <fieldset>
+        <legend class="sans">Choose at least one topic</legend>
+
+        <div class="topic-options">
+          <label>
+            <input type="checkbox" name="topic" value="technology">
+            Technology
+          </label>
+
+          <label>
+            <input type="checkbox" name="topic" value="science">
+            Science
+          </label>
+
+          <label>
+            <input type="checkbox" name="topic" value="world">
+            World affairs
+          </label>
+        </div>
+      </fieldset>
+
+      <label class="field-label" for="keywords">
+        Specific interests
+      </label>
+
+      <input
+        id="keywords"
+        type="text"
+        maxlength="200"
+        placeholder="AI, cybersecurity, space"
+      >
+
+      <p class="sans muted">
+        Optional. Separate interests with commas.
+      </p>
+
+      <label class="field-label" for="reading-time">
+        Reading budget
+      </label>
+
+      <select id="reading-time">
+        <option value="5">5 minutes · up to 5 stories</option>
+        <option value="10">10 minutes · up to 8 stories</option>
+        <option value="15">15 minutes · up to 12 stories</option>
+      </select>
+
+      <button id="generate" class="submit-button" type="submit">
+        Create my paper
+      </button>
+    </form>
+
+    <p id="status" class="sans muted" role="status"></p>
+    <p id="warnings" class="sans" role="status"></p>
+
+    <section id="edition" hidden aria-label="Personalized paper">
+      <div class="edition-toolbar">
+        <div>
+          <h2>Your personal paper</h2>
+          <p id="edition-info" class="sans muted"></p>
+        </div>
+
+        <button id="edit-preferences" type="button">
+          Edit preferences
+        </button>
+      </div>
+
+      <p class="sans muted">
+        Publisher feed excerpts, ordered around your interests.
+        Read the original articles for full reporting.
+      </p>
+
+      <div id="stories"></div>
     </section>
   </main>
 
   <script>
-    async function checkServer() {
-      const status = document.getElementById("status");
+    const form = document.getElementById("preferences");
+    const generateButton = document.getElementById("generate");
+    const statusElement = document.getElementById("status");
+    const warningsElement = document.getElementById("warnings");
+    const edition = document.getElementById("edition");
+    const stories = document.getElementById("stories");
+    const editionInfo = document.getElementById("edition-info");
+
+    const storageKey = "daybreak.preferences.v1";
+
+    document.getElementById("today").textContent =
+      new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+
+    function restorePreferences() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey));
+
+        if (!saved) return;
+
+        document.querySelectorAll('input[name="topic"]').forEach(
+          checkbox => {
+            checkbox.checked =
+              Array.isArray(saved.topics) &&
+              saved.topics.includes(checkbox.value);
+          }
+        );
+
+        document.getElementById("keywords").value =
+          saved.keywords || "";
+
+        const minutes = Number(saved.reading_minutes);
+
+        document.getElementById("reading-time").value =
+          [5, 10, 15].includes(minutes) ? String(minutes) : "5";
+      } catch (error) {
+        console.warn("Preferences could not be restored.");
+      }
+    }
+
+    function createStory(story) {
+      const article = document.createElement("article");
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent =
+        `${story.source} · ${story.topic.toUpperCase()}`;
+
+      const title = document.createElement("h2");
+      title.textContent = story.title;
+
+      const excerpt = document.createElement("p");
+      excerpt.textContent =
+        story.excerpt || "No excerpt supplied by the publisher.";
+
+      const reason = document.createElement("p");
+      reason.className = "reason";
+      reason.textContent = `Why this story? ${story.selection_reason}`;
+
+      const link = document.createElement("a");
+      link.className = "source-link";
+      link.href = story.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = `Read original at ${story.source} ↗`;
+
+      article.append(meta, title, excerpt, reason, link);
+
+      return article;
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const topics = Array.from(
+        document.querySelectorAll('input[name="topic"]:checked'),
+        checkbox => checkbox.value
+      );
+
+      if (!topics.length) {
+        statusElement.textContent = "Please choose at least one topic.";
+        return;
+      }
+
+      const preferences = {
+        topics,
+        keywords: document.getElementById("keywords").value.trim(),
+        reading_minutes: Number(
+          document.getElementById("reading-time").value
+        )
+      };
+
+      generateButton.disabled = true;
+      statusElement.textContent =
+        "Collecting stories and matching your interests...";
+      warningsElement.textContent = "";
 
       try {
-        const response = await fetch("/api/health");
+        const response = await fetch("/api/personalize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(preferences)
+        });
 
         if (!response.ok) {
-          throw new Error("Health check failed");
+          throw new Error(`Server returned ${response.status}`);
         }
 
         const data = await response.json();
 
-        status.textContent =
-          data.status === "ok"
-            ? "Server connected. Ready for the next step."
-            : "Server returned an unexpected response.";
-      } catch (error) {
-        status.textContent =
-          "Cannot connect to the server. Check the terminal.";
-      }
-    }
+        if (!data.count) {
+          warningsElement.textContent = data.warnings.join(" ");
+          statusElement.textContent =
+            "No stories available. Please try again.";
+          return;
+        }
 
-    checkServer();
+        try {
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify(preferences)
+          );
+        } catch (error) {
+          console.warn("Preferences could not be saved locally.");
+        }
+
+        stories.replaceChildren();
+
+        data.articles.forEach(story => {
+          stories.appendChild(createStory(story));
+        });
+
+        editionInfo.textContent =
+          `${data.count} stories · ` +
+          `${data.matched_count} match your preferences · ` +
+          `About ${data.estimated_reading_minutes} min of brief reading`;
+
+        warningsElement.textContent = data.warnings.join(" ");
+
+        form.hidden = true;
+        edition.hidden = false;
+
+        statusElement.textContent =
+          "Your paper is ready. Preferences saved in this browser.";
+
+        edition.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      } catch (error) {
+        statusElement.textContent =
+          "Could not create your paper. Check the terminal.";
+
+        warningsElement.textContent = error.message;
+      } finally {
+        generateButton.disabled = false;
+      }
+    });
+
+    document.getElementById("edit-preferences").addEventListener(
+      "click",
+      () => {
+        form.hidden = false;
+
+        form.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    );
+
+    restorePreferences();
   </script>
 </body>
 </html>
