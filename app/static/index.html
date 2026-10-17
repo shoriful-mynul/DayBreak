@@ -437,15 +437,18 @@
 
       generateButton.disabled = true;
       statusElement.textContent =
-        "Collecting stories and matching your interests...";
+        "Opening today's paper or preparing a fresh edition...";
       warningsElement.textContent = "";
 
       try {
-        const response = await fetch("/api/editions", {
+        const response = await fetch("/api/today", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Reader-ID": window.daybreakReaderId
+            "X-Reader-ID": window.daybreakReaderId,
+            "X-Timezone-Offset": String(
+              new Date().getTimezoneOffset()
+            )
           },
           body: JSON.stringify(preferences)
         });
@@ -490,8 +493,13 @@
 
         window.daybreakEditionId = data.edition_id;
 
-        statusElement.textContent =
-          "Your paper is ready and saved to your archive.";
+        if (window.setDaybreakEditionDate) {
+          window.setDaybreakEditionDate(data.created_at);
+        }
+
+        statusElement.textContent = data.reused_today
+          ? "Opened your saved paper for today."
+          : "Your fresh paper is ready and saved to your archive.";
 
         if (window.loadDaybreakArchive) {
           window.loadDaybreakArchive();

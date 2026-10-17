@@ -1,3 +1,18 @@
+window.setDaybreakEditionDate = function(timestamp) {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) return;
+
+  document.getElementById("today").textContent =
+    "Edition created " +
+    date.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+};
+
 const readerStorageKey = "daybreak.reader.v1";
 
 let readerId = localStorage.getItem(readerStorageKey);
@@ -10,6 +25,8 @@ if (!readerId) {
 window.daybreakReaderId = readerId;
 
 function showSavedEdition(paper) {
+  window.setDaybreakEditionDate(paper.created_at);
+
   stories.replaceChildren();
 
   paper.articles.forEach(story => {
@@ -355,3 +372,35 @@ updatePaperButton.addEventListener("click", async () => {
 });
 
 refreshLearning();
+
+function openTodayForReturningReader() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("daybreak.preferences.v1")
+    );
+
+    const allowedTopics = [
+      "technology",
+      "science",
+      "world"
+    ];
+
+    const validTopics =
+      Array.isArray(saved?.topics) &&
+      saved.topics.length > 0 &&
+      saved.topics.every(topic => allowedTopics.includes(topic));
+
+    const validReadingTime =
+      [5, 10, 15].includes(Number(saved?.reading_minutes));
+
+    if (!validTopics || !validReadingTime) {
+      return;
+    }
+
+    form.requestSubmit();
+  } catch (error) {
+    console.warn("Automatic daily opening was skipped.");
+  }
+}
+
+openTodayForReturningReader();

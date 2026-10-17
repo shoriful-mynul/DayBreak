@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from app.pdf_export import create_newspaper_pdf
+from datetime import datetime, timedelta, timezone
 
 from typing import Literal
 
@@ -300,3 +301,100 @@ def revise_edition(
     )
 
     return save_edition(reader_id, result)
+
+
+def preference_signature(preferences):
+    return {
+        "topics": sorted(set(preferences.topics)),
+        "keywords": preferences.keywords.strip().casefold(),
+        "reading_minutes": preferences.reading_minutes,
+    }
+
+
+def reader_local_date(timestamp, offset_minutes):
+    moment = datetime.fromisoformat(
+        timestamp.replace("Z", "+00:00")
+    )
+
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+
+    # JavaScript's timezone offset is UTC minus local time.
+    local_moment = (
+        moment.astimezone(timezone.utc)
+        - timedelta(minutes=offset_minutes)
+    )
+
+    return local_moment.date()
+
+
+@app.post("/api/today")
+async def today_paper(
+    preferences: ReaderPreferences,
+    reader_id: str = Depends(current_reader),
+    x_timezone_offset: int = Header(
+        default=0,
+        ge=-840,
+        le=840,
+    ),
+):
+    now = datetime.now(timezone.utc)
+
+    today = reader_local_date(
+        now.isoformat(),
+        x_timezone_offset,
+    )
+
+    wanted = preference_signature(preferences)
+
+    for item in list_editions(reader_id):
+        paper = get_edition(
+            reader_id,
+            item["edition_id"],
+        )
+
+        if not paper:
+            continue
+
+        try:
+            saved_preferences = ReaderPreferences(
+                **paper["preferences"]
+            )
+
+            created_date = reader_local_date(
+                paper["created_at"],
+                x_timezone_offset,
+            )
+
+            fetched_date = reader_local_date(
+                paper["fetched_at"],
+                x_timezone_offset,
+            )
+
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if (
+            created_date == today
+            and fetched_date == today
+            and preference_signature(saved_preferences) == wanted
+        ):
+            return {
+                **paper,
+                "reused_today": True,
+            }
+
+    paper = await build_paper(preferences, reader_id)
+
+    if not paper["count"]:
+        return {
+            **paper,
+            "reused_today": False,
+        }
+
+    saved = save_edition(reader_id, paper)
+
+    return {
+        **saved,
+        "reused_today": False,
+    }
