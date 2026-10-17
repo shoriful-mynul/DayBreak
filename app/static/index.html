@@ -206,6 +206,152 @@
       gap: 12px;
     }
 
+/* Final editorial polish */
+body {
+  background: #f6f2e8;
+}
+
+main {
+  max-width: 1180px;
+}
+
+header {
+  padding: 28px 0 22px;
+}
+
+header h1 {
+  font-weight: 700;
+  letter-spacing: -4px;
+}
+
+header .muted {
+  margin-bottom: 6px;
+}
+
+#preferences {
+  padding: clamp(22px, 5vw, 40px);
+  box-shadow: 0 10px 35px rgba(36, 36, 36, 0.05);
+}
+
+.topic-options label:has(input:checked) {
+  border-color: #702b35;
+  background: #f1e3e3;
+}
+
+input[type="checkbox"] {
+  accent-color: #702b35;
+}
+
+button {
+  min-height: 42px;
+  transition: background-color 150ms ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #a86a33;
+  outline-offset: 4px;
+}
+
+.edition-toolbar {
+  padding-bottom: 18px;
+  border-bottom: 3px double #242424;
+  flex-wrap: wrap;
+}
+
+.edition-toolbar h2 {
+  font-size: clamp(28px, 4vw, 40px);
+  margin: 0 0 8px;
+}
+
+#stories {
+  gap: 32px;
+  align-items: start;
+}
+
+#stories > article:first-child {
+  grid-column: span 2;
+  border-top: 4px solid #702b35;
+}
+
+#stories > article:first-child::before {
+  content: "THE LEAD";
+  display: block;
+  margin-bottom: 14px;
+  color: #702b35;
+  font: 700 11px Arial, sans-serif;
+  letter-spacing: 2px;
+}
+
+#stories > article:first-child h2 {
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.12;
+  margin: 14px 0;
+}
+
+article h2 {
+  margin: 12px 0;
+}
+
+article p {
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+article .reason {
+  font-size: 12px;
+  border-left: 3px solid #b6a98d;
+}
+
+#learning-status {
+  padding: 12px 16px;
+  background: #ece8dc;
+  border-left: 3px solid #702b35;
+}
+
+#archive-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#archive-list button {
+  width: 100%;
+  background: #eee8dc;
+  color: #242424;
+  border: 1px solid #c9c2b5;
+}
+
+@media (max-width: 560px) {
+  #stories > article:first-child {
+    grid-column: auto;
+  }
+
+  #archive-list {
+    grid-template-columns: 1fr;
+  }
+
+  .edition-actions {
+    width: 100%;
+  }
+
+  .edition-actions button {
+    flex: 1 1 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
 
   </style>
 </head>
@@ -586,7 +732,7 @@
         });
       } catch (error) {
         statusElement.textContent =
-          "Could not create your paper. Check the terminal.";
+          "Could not load your paper. Please try again shortly.";
 
         warningsElement.textContent = error.message;
       } finally {
