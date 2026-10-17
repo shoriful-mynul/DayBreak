@@ -368,6 +368,15 @@ article .reason {
 .coverage-swatch { width:11px; height:11px; border-radius:2px; flex-shrink:0; }
 @media(max-width:560px) { .coverage-panel { padding:16px; } .coverage-metrics { gap:8px; } .coverage-metric { padding-left:8px; } .coverage-metric strong { font-size:21px; } }
 
+
+/* Comparison appears immediately after creating a feedback revision. */
+.impact-chart { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; margin:18px 0; font:12px/1.5 Arial,sans-serif; }
+.impact-topic { font-weight:700; margin-bottom:9px; }
+.impact-line { display:grid; grid-template-columns:64px minmax(0,1fr); gap:8px; align-items:center; margin:7px 0; }
+.impact-track { height:12px; background:#eee8dc; border-radius:2px; overflow:hidden; }
+.impact-fill { height:100%; }
+@media(max-width:560px) { .impact-chart { grid-template-columns:1fr; gap:14px; } }
+
   </style>
 </head>
 
@@ -490,6 +499,8 @@ article .reason {
 
       <section id="edition-coverage" class="coverage-panel" aria-labelledby="coverage-title" hidden></section>
 
+      <section id="feedback-impact" class="coverage-panel" aria-labelledby="feedback-impact-title" aria-live="polite" hidden></section>
+
       <div id="stories"></div>
     </section>
 
@@ -557,7 +568,93 @@ article .reason {
     }
 
 
+
+    function summarizeFeedbackImpact(before, after) {
+      const oldArticles = before.articles || [];
+      const newArticles = after.articles || [];
+      const oldPositions = new Map(oldArticles.map((article, index) => [article.id, index]));
+      const newIds = new Set(newArticles.map(article => article.id));
+      const added = newArticles.filter(article => !oldPositions.has(article.id)).length;
+      const removed = oldArticles.filter(article => !newIds.has(article.id)).length;
+      const moved = newArticles.filter((article, index) =>
+        oldPositions.has(article.id) && oldPositions.get(article.id) !== index
+      ).length;
+      const topics = ["technology", "science", "world"];
+      const rows = topics.map(topic => ({
+        topic,
+        before: oldArticles.filter(article => article.topic === topic).length,
+        after: newArticles.filter(article => article.topic === topic).length
+      }));
+      const weightChanges = topics.filter(topic =>
+        Number(before.learned_weights?.[topic] || 0) !==
+        Number(after.learned_weights?.[topic] || 0)
+      ).length;
+      return { added, removed, moved, rows, weightChanges };
+    }
+
+    function renderFeedbackImpact(paper, previousPaper) {
+      const panel = document.getElementById("feedback-impact");
+      panel.replaceChildren();
+      panel.hidden = true;
+      if (!previousPaper || !paper.revision_of ||
+          paper.revision_of !== previousPaper.edition_id) return;
+
+      const impact = summarizeFeedbackImpact(previousPaper, paper);
+      panel.hidden = false;
+      const title = document.createElement("h3");
+      title.id = "feedback-impact-title";
+      title.textContent = "How your paper changed";
+      const summary = document.createElement("p");
+      summary.className = "coverage-subtitle";
+      const changed = impact.added || impact.removed || impact.moved;
+      summary.textContent = changed
+        ? impact.added + " stories added, " + impact.removed + " removed, " +
+          impact.moved + " retained stories changed position."
+        : "The selected stories and their order stayed the same.";
+      const note = document.createElement("p");
+      note.className = "coverage-subtitle";
+      note.textContent =
+        "Compared with the edition you just updated, using the same collected news pool. " +
+        impact.weightChanges + " topic preference adjustments changed since that edition.";
+      const chart = document.createElement("div");
+      chart.className = "impact-chart";
+
+      const labels = {technology:"Technology", science:"Science", world:"World affairs"};
+      impact.rows.forEach(row => {
+        const group = document.createElement("div");
+        group.className = "impact-row";
+        const heading = document.createElement("div");
+        heading.className = "impact-topic";
+        heading.textContent = labels[row.topic];
+        group.appendChild(heading);
+        const denominator = Math.max(1, previousPaper.articles.length, paper.articles.length);
+        for (const [label, count, color] of [
+          ["Before", row.before, "#a99a80"],
+          ["After", row.after, "#702b35"]
+        ]) {
+          const line = document.createElement("div");
+          line.className = "impact-line";
+          const caption = document.createElement("span");
+          caption.textContent = label + ": " + count;
+          const track = document.createElement("div");
+          track.className = "impact-track";
+          track.setAttribute("aria-hidden", "true");
+          const bar = document.createElement("div");
+          bar.className = "impact-fill";
+          bar.style.width = (count / denominator * 100) + "%";
+          bar.style.backgroundColor = color;
+          track.appendChild(bar);
+          line.append(caption, track);
+          group.appendChild(line);
+        }
+        chart.appendChild(group);
+      });
+      panel.append(title, summary, chart, note);
+    }
+
     function renderCoverage(paper) {
+      renderFeedbackImpact(paper, window.daybreakDisplayedPaper);
+      window.daybreakDisplayedPaper = paper;
       const panel = document.getElementById("edition-coverage");
       panel.replaceChildren();
       const articles = Array.isArray(paper.articles) ? paper.articles : [];

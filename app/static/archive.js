@@ -203,15 +203,13 @@ downloadPdfButton.addEventListener("click", async () => {
 const learningStatus = document.getElementById("learning-status");
 
 function displayLearning(weights) {
-  const entries = Object.entries(weights);
-
+  const labels = { technology: "technology", science: "science", world: "world affairs" };
+  const entries = Object.entries(weights).filter(([, value]) => Number(value) !== 0);
   learningStatus.textContent = entries.length
-    ? "Learned topic adjustments: " +
-      entries.map(([topic, value]) => {
-        const prefix = value > 0 ? "+" : "";
-        return `${topic} ${prefix}${value.toFixed(1)}`;
-      }).join(" · ")
-    : "No feedback yet. Tell us what you want more or less of.";
+    ? "Your paper is adapting: " + entries.map(([topic, value]) =>
+        (value > 0 ? "more " : "less ") + (labels[topic] || topic) + " coverage"
+      ).join(" · ") + ". Changes apply when you update or generate a paper."
+    : "No net topic preference yet. Tell us what you want more or less of.";
 }
 
 async function refreshLearning() {
