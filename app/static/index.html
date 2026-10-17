@@ -274,6 +274,22 @@
       <button id="generate" class="submit-button" type="submit">
         Create my paper
       </button>
+
+      <button
+        id="refresh-news"
+        class="submit-button"
+        type="submit"
+        value="fresh"
+        style="background: #49473f;"
+      >
+        Refresh news and create a new edition
+      </button>
+
+      <p class="sans muted">
+        Create my paper reopens today's matching edition.
+        Refresh news collects the latest available stories.
+      </p>
+
     </form>
 
     <p id="status" class="sans muted" role="status"></p>
@@ -388,6 +404,19 @@
       const title = document.createElement("h2");
       title.textContent = story.title;
 
+      const published = document.createElement("div");
+      published.className = "meta";
+
+      const publicationDate = story.published_at
+        ? new Date(story.published_at)
+        : null;
+
+      published.textContent =
+        publicationDate &&
+        !Number.isNaN(publicationDate.getTime())
+          ? `Published ${publicationDate.toLocaleString()}`
+          : "Publication time unavailable";
+
       const excerpt = document.createElement("p");
       excerpt.textContent =
         story.excerpt || "No excerpt supplied by the publisher.";
@@ -403,7 +432,42 @@
       link.rel = "noopener noreferrer";
       link.textContent = `Read original at ${story.source} ↗`;
 
-      article.append(meta, title, excerpt, reason, link);
+      const skipButton = document.createElement("button");
+
+      skipButton.type = "button";
+      skipButton.textContent = "Skip";
+      skipButton.setAttribute("aria-expanded", "true");
+      skipButton.style.display = "block";
+      skipButton.style.marginTop = "14px";
+      skipButton.style.background = "#49473f";
+      skipButton.style.fontSize = "12px";
+      skipButton.style.padding = "8px 12px";
+
+      skipButton.addEventListener("click", () => {
+        const collapse = !excerpt.hidden;
+
+        excerpt.hidden = collapse;
+        reason.hidden = collapse;
+
+        skipButton.textContent = collapse
+          ? "Show story"
+          : "Skip";
+
+        skipButton.setAttribute(
+          "aria-expanded",
+          String(!collapse)
+        );
+      });
+
+      article.append(
+        meta,
+        title,
+        published,
+        excerpt,
+        reason,
+        link,
+        skipButton
+      );
 
       if (window.createFeedbackControls) {
         article.appendChild(
@@ -435,13 +499,24 @@
         )
       };
 
-      generateButton.disabled = true;
+      const submitButtons = form.querySelectorAll(
+        'button[type="submit"]'
+      );
+
+      submitButtons.forEach(button => {
+        button.disabled = true;
+      });
+
+      const endpoint = event.submitter?.value === "fresh"
+        ? "/api/editions"
+        : "/api/today";
+
       statusElement.textContent =
         "Opening today's paper or preparing a fresh edition...";
       warningsElement.textContent = "";
 
       try {
-        const response = await fetch("/api/today", {
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -515,7 +590,9 @@
 
         warningsElement.textContent = error.message;
       } finally {
-        generateButton.disabled = false;
+        submitButtons.forEach(button => {
+          button.disabled = false;
+        });
       }
     });
 

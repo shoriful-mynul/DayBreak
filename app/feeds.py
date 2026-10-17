@@ -18,8 +18,28 @@ FEEDS = [
     },
     {
         "source": "The Guardian",
+        "topic": "technology",
+        "url": "https://www.theguardian.com/technology/rss",
+    },
+    {
+        "source": "BBC News",
+        "topic": "science",
+        "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+    },
+    {
+        "source": "The Guardian",
         "topic": "science",
         "url": "https://www.theguardian.com/science/rss",
+    },
+    {
+        "source": "BBC News",
+        "topic": "world",
+        "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    },
+    {
+        "source": "The Guardian",
+        "topic": "world",
+        "url": "https://www.theguardian.com/world/rss",
     },
     {
         "source": "NPR",
@@ -108,7 +128,7 @@ async def fetch_one_feed(client, feed):
             return {
                 "articles": [],
                 "warning": (
-                    f"{feed['source']}: no usable stories returned."
+                    f"{feed['source']} ({feed['topic']}): no usable stories returned."
                 ),
             }
 
@@ -127,7 +147,7 @@ async def fetch_one_feed(client, feed):
         return {
             "articles": [],
             "warning": (
-                f"{feed['source']}: could not load this source."
+                f"{feed['source']} ({feed['topic']}): could not load this feed."
             ),
         }
 

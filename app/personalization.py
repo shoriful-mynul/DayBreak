@@ -135,7 +135,25 @@ def personalize_articles(
         15: 12,
     }[preferences.reading_minutes]
 
-    selected = ranked[:target_count]
+    selected = []
+    remaining = list(ranked)
+    source_counts = {}
+
+    while remaining and len(selected) < target_count:
+        best = max(
+            remaining,
+            key=lambda article: (
+                article["relevance_score"]
+                - 1.25 * source_counts.get(article["source"], 0)
+            ),
+        )
+
+        selected.append(best)
+        remaining.remove(best)
+
+        source_counts[best["source"]] = (
+            source_counts.get(best["source"], 0) + 1
+        )
 
     word_count = sum(
         len(
