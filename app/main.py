@@ -6,6 +6,15 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from app.pdf_export import create_newspaper_pdf
 
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from app.learning import (
+    get_learned_weights,
+    record_feedback,
+)
+
 from app.feeds import collect_news
 from app.personalization import (
     ReaderPreferences,
@@ -41,13 +50,25 @@ def current_reader(
         )
 
 
-async def build_paper(preferences):
+async def build_paper(preferences, reader_id=None):
     news_data = await collect_news()
+
+    learned_weights = (
+        get_learned_weights(reader_id)
+        if reader_id
+        else {}
+    )
 
     result = personalize_articles(
         news_data["articles"],
         preferences,
+        learned_weights,
     )
+
+    result["learned_weights"] = learned_weights
+
+    # Keep the candidate pool for a controlled updated revision.
+    result["candidate_articles"] = news_data["articles"]
 
     result["warnings"] = news_data["warnings"]
     result["fetched_at"] = news_data["fetched_at"]
@@ -90,7 +111,7 @@ async def create_edition(
     preferences: ReaderPreferences,
     reader_id: str = Depends(current_reader),
 ):
-    paper = await build_paper(preferences)
+    paper = await build_paper(preferences, reader_id)
 
     # Do not save an empty edition when feeds fail.
     if not paper["count"]:
@@ -161,3 +182,121 @@ def download_edition_pdf(
             "Cache-Control": "private, no-store",
         },
     )
+    
+    
+class FeedbackRequest(BaseModel):
+    edition_id: str = Field(max_length=64)
+    article_id: str = Field(max_length=64)
+    action: Literal["more", "less"]
+
+
+@app.get("/api/learning")
+def learning_status(
+    reader_id: str = Depends(current_reader),
+):
+    return {
+        "weights": get_learned_weights(reader_id),
+    }
+
+
+@app.post("/api/feedback")
+def submit_feedback(
+    feedback: FeedbackRequest,
+    reader_id: str = Depends(current_reader),
+):
+    paper = get_edition(
+        reader_id,
+        feedback.edition_id,
+    )
+
+    if paper is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Edition not found.",
+        )
+
+    article = next(
+        (
+            item
+            for item in paper["articles"]
+            if item["id"] == feedback.article_id
+        ),
+        None,
+    )
+
+    if article is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Article not found in this edition.",
+        )
+
+    weights = record_feedback(
+        reader_id,
+        article,
+        feedback.action,
+    )
+
+    return {
+        "topic": article["topic"],
+        "action": feedback.action,
+        "weights": weights,
+    }
+
+
+@app.post("/api/editions/{edition_id}/revise")
+def revise_edition(
+    edition_id: str,
+    reader_id: str = Depends(current_reader),
+):
+    original = get_edition(reader_id, edition_id)
+
+    if original is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Edition not found.",
+        )
+
+    candidates = original.get("candidate_articles")
+
+    if not candidates:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Create a new paper first. "
+                "This older edition has no saved candidate pool."
+            ),
+        )
+
+    preferences = ReaderPreferences(
+        **original["preferences"]
+    )
+
+    weights = get_learned_weights(reader_id)
+
+    result = personalize_articles(
+        candidates,
+        preferences,
+        weights,
+    )
+
+    result.update(
+        {
+            "preferences": original["preferences"],
+            "candidate_articles": candidates,
+            "learned_weights": weights,
+            "warnings": original.get("warnings", []),
+            "fetched_at": original["fetched_at"],
+            "sources_loaded": original.get(
+                "sources_loaded", []
+            ),
+            "sources_in_paper": sorted(
+                {
+                    article["source"]
+                    for article in result["articles"]
+                }
+            ),
+            "revision_of": edition_id,
+        }
+    )
+
+    return save_edition(reader_id, result)

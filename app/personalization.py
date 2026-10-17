@@ -15,7 +15,13 @@ class ReaderPreferences(BaseModel):
     reading_minutes: Literal[5, 10, 15] = 5
 
 
-def personalize_articles(articles, preferences):
+def personalize_articles(
+    articles,
+    preferences,
+    learned_weights=None,
+):
+    learned_weights = learned_weights or {}
+    
     selected_topics = set(preferences.topics)
 
     keywords = list(
@@ -84,6 +90,23 @@ def personalize_articles(articles, preferences):
             except (TypeError, ValueError):
                 pass
 
+        learned_bonus = learned_weights.get(
+            article["topic"], 0.0
+        )
+
+        score += learned_bonus
+
+        if learned_bonus > 0:
+            reasons.append(
+                "Boosted by your positive feedback on this topic."
+            )
+        elif learned_bonus < 0:
+            reasons.append(
+                "Lower priority after your feedback on this topic."
+            )
+
+        article["learning_adjustment"] = learned_bonus
+        
         if not reasons:
             reasons.append(
                 "Additional coverage outside your selected topics."

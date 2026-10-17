@@ -180,3 +180,178 @@ downloadPdfButton.addEventListener("click", async () => {
     downloadPdfButton.textContent = "Download PDF";
   }
 });
+
+
+const learningStatus = document.getElementById("learning-status");
+
+function displayLearning(weights) {
+  const entries = Object.entries(weights);
+
+  learningStatus.textContent = entries.length
+    ? "Learned topic adjustments: " +
+      entries.map(([topic, value]) => {
+        const prefix = value > 0 ? "+" : "";
+        return `${topic} ${prefix}${value.toFixed(1)}`;
+      }).join(" · ")
+    : "No feedback yet. Tell us what you want more or less of.";
+}
+
+async function refreshLearning() {
+  try {
+    const response = await fetch("/api/learning", {
+      headers: {
+        "X-Reader-ID": window.daybreakReaderId
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not load learned preferences.");
+    }
+
+    const data = await response.json();
+    displayLearning(data.weights);
+  } catch (error) {
+    learningStatus.textContent = error.message;
+  }
+}
+
+window.createFeedbackControls = function(story) {
+  const controls = document.createElement("div");
+
+  controls.style.display = "flex";
+  controls.style.flexWrap = "wrap";
+  controls.style.gap = "8px";
+  controls.style.marginTop = "16px";
+
+  const buttons = [];
+
+  for (const [action, label] of [
+    ["more", "More like this"],
+    ["less", "Less like this"]
+  ]) {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = label;
+    button.setAttribute("aria-pressed", "false");
+    button.style.fontSize = "12px";
+    button.style.padding = "9px 11px";
+
+    button.addEventListener("click", async () => {
+      const editionId = window.daybreakEditionId;
+
+      if (!editionId) {
+        statusElement.textContent =
+          "Open a saved edition before giving feedback.";
+        return;
+      }
+
+      buttons.forEach(item => {
+        item.disabled = true;
+      });
+
+      try {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Reader-ID": window.daybreakReaderId
+          },
+          body: JSON.stringify({
+            edition_id: editionId,
+            article_id: story.id,
+            action
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Feedback could not be saved.");
+        }
+
+        const data = await response.json();
+
+        buttons.forEach(item => {
+          item.setAttribute(
+            "aria-pressed",
+            item === button ? "true" : "false"
+          );
+
+          item.style.outline =
+            item === button ? "2px solid #242424" : "none";
+
+          item.style.outlineOffset = "2px";
+        });
+
+        displayLearning(data.weights);
+
+        statusElement.textContent =
+          `Feedback saved for ${data.topic}. ` +
+          "Update this paper or create a new one to apply it.";
+      } catch (error) {
+        statusElement.textContent = error.message;
+      } finally {
+        buttons.forEach(item => {
+          item.disabled = false;
+        });
+      }
+    });
+
+    buttons.push(button);
+    controls.appendChild(button);
+  }
+
+  return controls;
+};
+
+const updatePaperButton = document.getElementById("update-paper");
+
+updatePaperButton.addEventListener("click", async () => {
+  const editionId = window.daybreakEditionId;
+
+  if (!editionId) {
+    statusElement.textContent =
+      "Create a paper or open an edition first.";
+    return;
+  }
+
+  updatePaperButton.disabled = true;
+  updatePaperButton.textContent = "Updating...";
+
+  try {
+    const response = await fetch(
+      `/api/editions/${editionId}/revise`,
+      {
+        method: "POST",
+        headers: {
+          "X-Reader-ID": window.daybreakReaderId
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+
+      throw new Error(
+        error.detail || "Could not update this paper."
+      );
+    }
+
+    const paper = await response.json();
+
+    showSavedEdition(paper);
+
+    statusElement.textContent =
+      "Updated revision saved using the same collected stories " +
+      "and your latest feedback.";
+
+    await loadArchive();
+    await refreshLearning();
+  } catch (error) {
+    statusElement.textContent = error.message;
+  } finally {
+    updatePaperButton.disabled = false;
+    updatePaperButton.textContent = "Update this paper";
+  }
+});
+
+refreshLearning();

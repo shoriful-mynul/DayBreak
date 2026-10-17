@@ -199,7 +199,7 @@
         flex-direction: column;
       }
     }
-    
+
     .edition-actions {
       display: flex;
       flex-wrap: wrap;
@@ -291,6 +291,10 @@
            Download PDF
          </button>
 
+         <button id="update-paper" type="button">
+           Update this paper
+         </button>
+
          <button id="edit-preferences" type="button">
            Edit preferences
          </button>
@@ -301,6 +305,10 @@
       <p class="sans muted">
         Publisher feed excerpts, ordered around your interests.
         Read the original articles for full reporting.
+      </p>
+
+      <p id="learning-status" class="sans muted" role="status">
+        Learning from your reading feedback.
       </p>
 
       <div id="stories"></div>
@@ -396,6 +404,12 @@
       link.textContent = `Read original at ${story.source} ↗`;
 
       article.append(meta, title, excerpt, reason, link);
+
+      if (window.createFeedbackControls) {
+        article.appendChild(
+          window.createFeedbackControls(story)
+        );
+      }
 
       return article;
     }
