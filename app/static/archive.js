@@ -125,3 +125,58 @@ async function loadArchive() {
 window.loadDaybreakArchive = loadArchive;
 
 loadArchive();
+
+
+const downloadPdfButton = document.getElementById("download-pdf");
+
+downloadPdfButton.addEventListener("click", async () => {
+  const editionId = window.daybreakEditionId;
+
+  if (!editionId) {
+    statusElement.textContent =
+      "Create a paper or open a saved edition first.";
+    return;
+  }
+
+  downloadPdfButton.disabled = true;
+  downloadPdfButton.textContent = "Preparing PDF...";
+
+  try {
+    const response = await fetch(
+      `/api/editions/${editionId}/pdf`,
+      {
+        headers: {
+          "X-Reader-ID": window.daybreakReaderId
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`PDF request failed: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `daybreak-${editionId.slice(0, 8)}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(downloadUrl);
+    }, 10000);
+
+    statusElement.textContent =
+      "PDF download requested for the edition currently displayed.";
+  } catch (error) {
+    statusElement.textContent =
+      `Could not download PDF. ${error.message}`;
+  } finally {
+    downloadPdfButton.disabled = false;
+    downloadPdfButton.textContent = "Download PDF";
+  }
+});

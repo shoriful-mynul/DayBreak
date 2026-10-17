@@ -2,8 +2,9 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from app.pdf_export import create_newspaper_pdf
 
 from app.feeds import collect_news
 from app.personalization import (
@@ -131,3 +132,32 @@ def news_page():
 @app.get("/")
 def home():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/api/editions/{edition_id}/pdf")
+def download_edition_pdf(
+    edition_id: str,
+    reader_id: str = Depends(current_reader),
+):
+    paper = get_edition(reader_id, edition_id)
+
+    if paper is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Edition not found.",
+        )
+
+    pdf_bytes = create_newspaper_pdf(paper)
+
+    filename = f"daybreak-{paper['edition_id'][:8]}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{filename}"'
+            ),
+            "Cache-Control": "private, no-store",
+        },
+    )

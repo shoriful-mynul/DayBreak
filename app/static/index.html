@@ -199,6 +199,14 @@
         flex-direction: column;
       }
     }
+    
+    .edition-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+
   </style>
 </head>
 
@@ -278,9 +286,16 @@
           <p id="edition-info" class="sans muted"></p>
         </div>
 
-        <button id="edit-preferences" type="button">
-          Edit preferences
-        </button>
+        <div class="edition-actions">
+         <button id="download-pdf" type="button">
+           Download PDF
+         </button>
+
+         <button id="edit-preferences" type="button">
+           Edit preferences
+         </button>
+        </div>
+
       </div>
 
       <p class="sans muted">
