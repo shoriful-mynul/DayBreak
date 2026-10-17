@@ -4,3 +4,5 @@ httpx
 feedparser
 beautifulsoup4
 reportlab
+psycopg[binary]
+python-dotenv

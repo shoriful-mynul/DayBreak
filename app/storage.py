@@ -1,45 +1,87 @@
 import json
 import os
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 from uuid import uuid4
+
+import psycopg
+from dotenv import load_dotenv
+from psycopg.rows import dict_row
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-DATA_DIR = Path(
-    os.environ.get("DAYBREAK_DATA_DIR", str(PROJECT_DIR / "data"))
-)
+# Read local secrets. Hosting environment variables take precedence.
+load_dotenv(PROJECT_DIR / ".env", override=False)
 
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+_schema_lock = Lock()
+_schema_ready = False
 
-DB_PATH = DATA_DIR / "daybreak.db"
+
+def open_database():
+    database_url = os.environ.get("DATABASE_URL", "").strip()
+
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL is missing. "
+            "Set it in the project-root .env file "
+            "or the hosting environment."
+        )
+
+    return psycopg.connect(
+        database_url,
+        row_factory=dict_row,
+        connect_timeout=15,
+        prepare_threshold=None,
+    )
+
+
+def ensure_schema():
+    global _schema_ready
+
+    with _schema_lock:
+        if _schema_ready:
+            return
+
+        with open_database() as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS editions (
+                    id TEXT PRIMARY KEY,
+                    reader_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    content TEXT NOT NULL
+                )
+                """
+            )
+
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS editions_by_reader
+                ON editions(reader_id, created_at)
+                """
+            )
+
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS feedback (
+                    reader_id TEXT NOT NULL,
+                    article_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    value INTEGER NOT NULL
+                        CHECK(value IN (-1, 1)),
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (reader_id, article_id)
+                )
+                """
+            )
+
+        _schema_ready = True
 
 
 def connect():
-    connection = sqlite3.connect(DB_PATH, timeout=15)
-    connection.row_factory = sqlite3.Row
-
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS editions (
-            id TEXT PRIMARY KEY,
-            reader_id TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            content TEXT NOT NULL
-        )
-        """
-    )
-
-    connection.execute(
-        """
-        CREATE INDEX IF NOT EXISTS editions_by_reader
-        ON editions(reader_id, created_at)
-        """
-    )
-
-    connection.commit()
-    return connection
+    ensure_schema()
+    return open_database()
 
 
 def save_edition(reader_id, paper):
@@ -52,78 +94,65 @@ def save_edition(reader_id, paper):
         "created_at": created_at,
     }
 
-    connection = connect()
-
-    try:
-        with connection:
-            connection.execute(
-                """
-                INSERT INTO editions
-                    (id, reader_id, created_at, content)
-                VALUES (?, ?, ?, ?)
-                """,
-                (
-                    edition_id,
-                    reader_id,
-                    created_at,
-                    json.dumps(saved_paper, ensure_ascii=False),
-                ),
-            )
-    finally:
-        connection.close()
+    with connect() as connection:
+        connection.execute(
+            """
+            INSERT INTO editions
+                (id, reader_id, created_at, content)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (
+                edition_id,
+                reader_id,
+                created_at,
+                json.dumps(saved_paper, ensure_ascii=False),
+            ),
+        )
 
     return saved_paper
 
 
 def list_editions(reader_id):
-    connection = connect()
-
-    try:
+    with connect() as connection:
         rows = connection.execute(
             """
             SELECT id, created_at, content
             FROM editions
-            WHERE reader_id = ?
+            WHERE reader_id = %s
             ORDER BY created_at DESC
             LIMIT 100
             """,
             (reader_id,),
         ).fetchall()
 
-        editions = []
+    editions = []
 
-        for row in rows:
-            paper = json.loads(row["content"])
+    for row in rows:
+        paper = json.loads(row["content"])
 
-            editions.append(
-                {
-                    "edition_id": row["id"],
-                    "created_at": row["created_at"],
-                    "count": paper["count"],
-                    "topics": paper.get(
-                        "preferences", {}
-                    ).get("topics", []),
-                }
-            )
+        editions.append(
+            {
+                "edition_id": row["id"],
+                "created_at": row["created_at"],
+                "count": paper["count"],
+                "topics": paper.get(
+                    "preferences", {}
+                ).get("topics", []),
+            }
+        )
 
-        return editions
-    finally:
-        connection.close()
+    return editions
 
 
 def get_edition(reader_id, edition_id):
-    connection = connect()
-
-    try:
+    with connect() as connection:
         row = connection.execute(
             """
             SELECT content
             FROM editions
-            WHERE reader_id = ? AND id = ?
+            WHERE reader_id = %s AND id = %s
             """,
             (reader_id, edition_id),
         ).fetchone()
 
-        return json.loads(row["content"]) if row else None
-    finally:
-        connection.close()
+    return json.loads(row["content"]) if row else None
